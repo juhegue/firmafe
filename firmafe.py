@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+import os
 import OpenSSL
 from xades.constants import MAP_HASHLIB
 from xades.policy import ETSI, DS
@@ -13,6 +14,9 @@ from xades import ObjectIdentifier, XAdESContext, template, utils
 from xades.policy import GenericPolicyId
 from cryptography.hazmat.primitives.serialization import pkcs12
 import pathlib
+
+__version__ = '0.0.2'
+__author__ = 'juhegue 10/12/2024'
 
 
 class MiGenericPolicyId(GenericPolicyId):
@@ -172,14 +176,11 @@ def firma(certificado, origen, verify=True):
 
 if __name__ == '__main__':
     import sys
-    import os
     import argparse
-    from io import StringIO, BytesIO
     import codecs
+    from io import StringIO, BytesIO
 
-    __version__ = '0.0.2'
-
-    parser = argparse.ArgumentParser(description='Firma XML Facturae v3.2.x XAdES (Por Juhegue)')
+    parser = argparse.ArgumentParser(description='Firma XML Facturae v3.2.x XAdES ' + __author__)
     parser.add_argument('-v', '--version', action='version', version='%(prog)s ' + __version__)
     parser.add_argument('-o', '--origen', dest='origen', type=str, help='XML origen', required=True)
     parser.add_argument('-c', '--certificado', dest='certificado', type=str, help='Certidicado pkcs12', required=True)
