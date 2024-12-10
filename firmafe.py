@@ -175,10 +175,9 @@ if __name__ == '__main__':
     import os
     import argparse
     from io import StringIO, BytesIO
-    from cryptography.hazmat.primitives.serialization import pkcs12
     import codecs
 
-    __version__ = '0.0.1'
+    __version__ = '0.0.2'
 
     parser = argparse.ArgumentParser(description='Firma XML Facturae v3.2.x XAdES (Por Juhegue)')
     parser.add_argument('-v', '--version', action='version', version='%(prog)s ' + __version__)
