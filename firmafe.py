@@ -1,21 +1,23 @@
 # -*- coding: utf-8 -*-
-
+import OpenSSL
+from xades.constants import MAP_HASHLIB
+from xades.policy import ETSI, DS
+from xmlsig.utils import create_node
+from xades.ns import EtsiNS
+from xmlsig.utils import get_rdns_name
+from base64 import b64encode
 from datetime import datetime
 from lxml import etree
 import xmlsig
 from xades import ObjectIdentifier, XAdESContext, template, utils
 from xades.policy import GenericPolicyId
-from cryptography.hazmat.primitives.serialization import pkcs12  # No quitar, si se usa !!!
+from cryptography.hazmat.primitives.serialization import pkcs12
+import pathlib
 
-#------------------------------------------------------------------------
-from xades.constants import MAP_HASHLIB
-from xades.policy import ETSI, DS
-from xmlsig.utils import get_rdns_name
-from base64 import b64encode
 
 class MiGenericPolicyId(GenericPolicyId):
     """
-    Sobreesctito para cambiar: 'self.hash_method' por 'xmlsig.constants.TransformSha512'
+    Sobreescrito para cambiar: 'self.hash_method' por 'xmlsig.constants.TransformSha512'
     """
     def calculate_certificate(self, node, key_x509):
         fingerprint = key_x509.fingerprint(MAP_HASHLIB[xmlsig.constants.TransformSha512]())
@@ -31,9 +33,17 @@ class MiGenericPolicyId(GenericPolicyId):
         )
         node.append(_ETSI_Cert)
 
-#------------------------------------------------------------------------
-import OpenSSL
-from cryptography.x509 import Certificate
+    def _resolve_policy(self, identifier):
+        """
+        Sobreescrito porque da error la url
+        """
+        path_base = pathlib.Path(__file__).parent.resolve()
+        nom_pdf = identifier.split('/')[-1]
+        polica_firma = os.path.join(path_base, nom_pdf)
+        with open(polica_firma, 'rb') as f:
+            return f.read()
+
+
 class MiXAdESContext(XAdESContext):
     """
     Sobreesctito para añadir los 'ca_certificates'
@@ -56,20 +66,15 @@ class MiXAdESContext(XAdESContext):
         elif isinstance(key, tuple):
             # This would happen if we are using cryptography
             # cuando se lee con load_key_and_certificates
-            self.x509 = key[1]
-            self.public_key = key[1].public_key()
-            self.private_key = key[0]
-            # Parche para obtener ca_certificates
-            if len(key) > 2 and isinstance(key[2], list):
-                for cer in key[2]:
-                    if isinstance(cer, Certificate):
-                        self.ca_certificates.append(cer)
+            private_key, certificate, ca_certificates = key
+            self.x509 = certificate
+            self.public_key = certificate.public_key()
+            self.private_key = private_key
+            self.ca_certificates = ca_certificates
         else:
             raise NotImplementedError()
 
-#------------------------------------------------------------------------
-from xmlsig.utils import create_node
-from xades.ns import EtsiNS
+
 class MiObjectIdentifier(ObjectIdentifier):
 
     def to_xml(self, node):
@@ -86,8 +91,6 @@ class MiObjectIdentifier(ObjectIdentifier):
                 create_node(
                     'DocumentationReference', documentation, EtsiNS
                 ).text = reference
-
-#------------------------------------------------------------------------
 
 
 def firma(certificado, origen, verify=True):
@@ -153,9 +156,8 @@ def firma(certificado, origen, verify=True):
     root.append(signature)
 
     policy = MiGenericPolicyId(
-        'https://www.facturae.gob.es/politica_de_firma_formato_facturae/'
-        'politica_de_firma_formato_facturae_v3_1.pdf',
-        'Politica de Firma FacturaE v3.1',
+        'http://www.facturae.es/politica_de_firma_formato_facturae/politica_de_firma_formato_facturae_v3_1.pdf',
+        '',
         xmlsig.constants.TransformSha1,
     )
 
@@ -216,10 +218,10 @@ if __name__ == '__main__':
             try:
                 version = args.validar.replace('.', '_')
                 path = os.path.join(os.path.dirname(__file__))
-                xsd = os.path.join(path, 'data', f'Facturaev{version}.xml')
+                xsd = os.path.join(path, f'Facturaev{version}.xml')
                 with codecs.open(xsd, 'r', 'utf-8') as f:
                     xsd_data = f.read()
-                xsd_shema = os.path.join(path, 'data', 'xmldsig-core-schema.xsd')
+                xsd_shema = os.path.join(path, 'xmldsig-core-schema.xsd')
                 xsd_shema = 'file:///' + xsd_shema.replace('\\', '/')
                 xsd_data = xsd_data.replace('http://www.w3.org/TR/xmldsig-core/xmldsig-core-schema.xsd', xsd_shema)
                 xsd_tree = etree.fromstring(xsd_data)
